@@ -80,6 +80,11 @@ class Sorter<Cfg>::Classifier {
      */
     less getComparator() const { return comp_; }
 
+    void build(std::vector<std::pair<size_t, size_t>> h_id, size_t mask) {
+        heavy_id = h_id;
+        heavy_id_mask = mask;
+    }
+
     /**
      * Builds the tree from the sorted splitters.
      */
@@ -97,18 +102,22 @@ class Sorter<Cfg>::Classifier {
      * Classifies a single element.
      */
     template <bool kEqualBuckets>
-    bucket_type classify(const value_type& value) const {
-        const int log_buckets = log_buckets_;
-        const bucket_type num_buckets = num_buckets_;
-        IPS4OML_ASSUME_NOT(log_buckets < 1);
-        IPS4OML_ASSUME_NOT(log_buckets > Cfg::kLogBuckets + 1);
-
-        bucket_type b = 1;
-        for (int l = 0; l < log_buckets; ++l)
-            b = 2 * b + comp_(splitter(b), value);
-        if (kEqualBuckets)
-            b = 2 * b + !comp_(value, sortedSplitter(b - num_buckets));
-        return b - (kEqualBuckets ? 2 * num_buckets : num_buckets);
+    bucket_type classify(iterator begin, const value_type& value) const {
+        const size_t heavy_buckets = heavy_id.size();
+        const size_t num_buckets = heavy_buckets + light_buckets;
+        size_t idx = hash32(value) & heavy_id_mask;
+        while (heavy_id[idx].first != ULLONG_MAX && begin[heavy_id[idx].first] != value) {
+            idx = (idx + 1) & heavy_id_mask;
+        }
+        size_t it = heavy_id[idx].second;
+        if (it != ULLONG_MAX) {
+        // In[i] is a heavy key
+            return it + light_buckets;
+        } else {
+            // In[i] is a light key
+            size_t hash_v = hash32(value);
+            return hash_v & LIGHT_MASK;
+        }
     }
 
     /**
@@ -116,64 +125,35 @@ class Sorter<Cfg>::Classifier {
      */
     template <bool kEqualBuckets, class Yield> 
     void classify(iterator begin, iterator end, Yield&& yield) const {
-      classifySwitch<kEqualBuckets>(begin, end, std::forward<Yield>(yield),
-	std::make_integer_sequence<int, Cfg::kLogBuckets + 1>{});
-    }
-
-    /**
-     * Classifies all elements using a callback.
-     */
-  template <bool kEqualBuckets, class Yield, int...Args>
-  void classifySwitch(iterator begin, iterator end, Yield&& yield,
-		      std::integer_sequence<int, Args...>) const {
-    IPS4OML_ASSUME_NOT(log_buckets_ <= 0 && log_buckets_ >= static_cast<int>(sizeof...(Args)));
-    ((Args == log_buckets_ &&
-      classifyUnrolled<kEqualBuckets, Args>(begin, end, std::forward<Yield>(yield)))
-     || ...);
-    }
-
-    /**
-     * Classifies all elements using a callback.
-     */
-    template <bool kEqualBuckets, int kLogBuckets, class Yield>
-    bool classifyUnrolled(iterator begin, const iterator end, Yield&& yield) const {
-
-        constexpr const bucket_type kNumBuckets = 1l << (kLogBuckets + kEqualBuckets);
-        constexpr const int kUnroll = Cfg::kUnrollClassifier;
-        IPS4OML_ASSUME_NOT(begin >= end);
-        IPS4OML_ASSUME_NOT(begin > (end - kUnroll));
-
-        bucket_type b[kUnroll];
-        for (auto cutoff = end - kUnroll; begin <= cutoff; begin += kUnroll) {
-            for (int i = 0; i < kUnroll; ++i)
-                b[i] = 1;
-
-            for (int l = 0; l < kLogBuckets; ++l)
-                for (int i = 0; i < kUnroll; ++i)
-                    b[i] = 2 * b[i] + comp_(splitter(b[i]), begin[i]);
-
-            if (kEqualBuckets)
-                for (int i = 0; i < kUnroll; ++i)
-                    b[i] = 2 * b[i]
-                           + !comp_(begin[i], sortedSplitter(b[i] - kNumBuckets / 2));
-
-            for (int i = 0; i < kUnroll; ++i)
-                yield(b[i] - kNumBuckets, begin + i);
-        }
-
-        IPS4OML_ASSUME_NOT(begin > end);
+        const size_t heavy_buckets = heavy_id.size();
+        const size_t num_buckets = heavy_buckets + light_buckets;
         for (; begin != end; ++begin) {
-            bucket_type b = 1;
-            for (int l = 0; l < kLogBuckets; ++l)
-                b = 2 * b + comp_(splitter(b), *begin);
-            if (kEqualBuckets)
-                b = 2 * b + !comp_(*begin, sortedSplitter(b - kNumBuckets / 2));
-            yield(b - kNumBuckets, begin);
+            const auto value = *begin;
+            size_t idx = hash32(value) & heavy_id_mask;
+            while (heavy_id[idx].first != ULLONG_MAX && begin[heavy_id[idx].first] != value) {
+                idx = (idx + 1) & heavy_id_mask;
+            }
+            size_t it = heavy_id[idx].second;
+            if (it != ULLONG_MAX) {
+            // In[i] is a heavy key
+                yield(it + light_buckets, begin);
+            } else {
+                // In[i] is a light key
+                size_t hash_v = hash32(value);
+                yield(hash_v & LIGHT_MASK, begin);
+            }
         }
-	return true;
     }
 
  private:
+    const size_t LOG2_LIGHT_KEYS = 10;
+    const size_t LIGHT_MASK = (1 << LOG2_LIGHT_KEYS) - 1;
+    const size_t light_buckets = 1 << LOG2_LIGHT_KEYS;
+    size_t hash_table_mask;
+    size_t heavy_id_mask;
+    
+    std::vector<std::pair<size_t, size_t>> heavy_id;
+
     const value_type& splitter(bucket_type i) const {
         return static_cast<const value_type*>(static_cast<const void*>(storage_))[i];
     }

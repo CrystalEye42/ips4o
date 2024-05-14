@@ -45,9 +45,9 @@ int main(int argc, char** argv) {
     std::default_random_engine gen(r());
     std::uniform_real_distribution<double> dist;
 
-    std::vector<double> v(1000000);
+    std::vector<int> v(100);
     for (auto& e : v) {
-        e = dist(gen);
+        e = int(dist(gen) * 100);
     }
 
 #if defined(_REENTRANT)
@@ -55,9 +55,12 @@ int main(int argc, char** argv) {
 #else
     ips4o::sort(v.begin(), v.end(), std::less<>{});
 #endif
-    
-    const bool sorted = std::is_sorted(v.begin(), v.end(), std::less<>{});
-    std::cout << "Elements are sorted: " << std::boolalpha << sorted << std::endl;
+    for (auto e : v) {
+        std::cout << e << " ";
+    }
+    std::cout << std::endl;
+    //const bool sorted = std::is_sorted(v.begin(), v.end(), std::less<>{});
+    //std::cout << "Elements are sorted: " << std::boolalpha << sorted << std::endl;
 
     return 0;
 }

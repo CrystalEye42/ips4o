@@ -52,5 +52,43 @@ inline constexpr unsigned long log2(unsigned long n) {
     return (std::numeric_limits<unsigned long>::digits - 1 - __builtin_clzl(n));
 }
 
+// returns the log base 2 rounded up (works on ints or longs or unsigned
+// versions)
+template <class T>
+size_t log2_up(T i) {
+  assert(i > 0);
+  size_t a = 0;
+  T b = i - 1;
+  while (b > 0) {
+    b = b >> 1;
+    a++;
+  }
+  return a;
+}
+
+// from numerical recipes
+inline uint64_t hash64(uint64_t u) {
+  uint64_t v = u * 3935559000370003845ul + 2691343689449507681ul;
+  v ^= v >> 21;
+  v ^= v << 37;
+  v ^= v >> 4;
+  v *= 4768777513237032717ul;
+  v ^= v << 20;
+  v ^= v >> 41;
+  v ^= v << 5;
+  return v;
+}
+
+// a 32-bit hash function
+inline uint32_t hash32(uint32_t a) {
+  a = (a + 0x7ed55d16) + (a << 12);
+  a = (a ^ 0xc761c23c) ^ (a >> 19);
+  a = (a + 0x165667b1) + (a << 5);
+  a = (a + 0xd3a2646c) ^ (a << 9);
+  a = (a + 0xfd7046c5) + (a << 3);
+  a = (a ^ 0xb55a4f09) ^ (a >> 16);
+  return a;
+}
+
 }  // namespace detail
 }  // namespace ips4o

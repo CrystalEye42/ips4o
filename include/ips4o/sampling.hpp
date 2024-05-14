@@ -43,6 +43,7 @@
 #include "classifier.hpp"
 #include "config.hpp"
 #include "memory.hpp"
+#include "utils.hpp"
 
 namespace ips4o {
 namespace detail {
@@ -74,14 +75,83 @@ std::pair<int, bool> Sorter<Cfg>::buildClassifier(const iterator begin,
                                                   const iterator end,
                                                   Classifier& classifier) {
     const auto n = end - begin;
-    int log_buckets = Cfg::logBuckets(n);
-    int num_buckets = 1 << log_buckets;
-    const auto step = std::max<diff_t>(1, Cfg::oversamplingFactor(n));
-    const auto num_samples = std::min(step * num_buckets - 1, n / 2);
+    const size_t hash_bits = sizeof(uint32_t) * 8;
+
+    const double LOAD_FACTOR = 1.2;
+    const size_t SAMPLE_QUOTIENT = 500;
+    const size_t HEAVY_THRESHOLD = log(n);
+    const size_t NUM_SAMPLES = SAMPLE_QUOTIENT * HEAVY_THRESHOLD;
+
+    std::vector<std::pair<size_t, size_t>> heavy_seq;
+    size_t hash_table_size = size_t{1} << log2_up(static_cast<size_t>(NUM_SAMPLES * LOAD_FACTOR));
+    size_t hash_table_mask = hash_table_size - 1;
+    std::vector<std::pair<size_t,size_t>> hash_table(hash_table_size, {ULLONG_MAX, 0});
 
     // Select the sample
-    detail::selectSample(begin, end, num_samples, local_.random_generator);
+    for (size_t i = 0; i < NUM_SAMPLES; i++) {
+        size_t v = hash64(i) % n;
+        size_t idx = hash32(begin[v]) & hash_table_mask;
+        while (hash_table[idx].first != ULLONG_MAX && begin[v] != begin[hash_table[idx].first]) {
+            idx = (idx + 1) & hash_table_mask;
+        }
+        if (hash_table[idx].first == ULLONG_MAX) {
+            hash_table[idx].first = v;
+        }
+        hash_table[idx].second++;
+    }
+    size_t heavy_buckets = 0;
+    for (size_t i = 0; i < hash_table_size; i++) {
+        if (hash_table[i].second >= HEAVY_THRESHOLD) {
+            heavy_seq.push_back({hash_table[i].first, heavy_buckets++});
+        }
+    }
+    const size_t LOG2_LIGHT_KEYS = 10;
+    const size_t LIGHT_MASK = (1 << LOG2_LIGHT_KEYS) - 1;
+    const size_t light_buckets = 1 << LOG2_LIGHT_KEYS;
+    
+    // Construct lookup table
+    size_t heavy_id_size = size_t{1} << log2_up(heavy_seq.size() * 5 + 1);
+    size_t heavy_id_mask = heavy_id_size - 1;
+    std::vector<std::pair<size_t, size_t>> heavy_id(heavy_id_size, {ULLONG_MAX, ULLONG_MAX});
+    for (const auto& [k, v] : heavy_seq) {
+        size_t idx = hash32(begin[k]) & heavy_id_mask;
+        while (heavy_id[idx].first != ULLONG_MAX) {
+            idx = (idx + 1) & heavy_id_mask;
+        }
+        heavy_id[idx] = {k, v};
+    }
 
+    classifier.build(heavy_id, heavy_id_mask);
+    this->classifier_ = &classifier;
+
+    return {heavy_buckets + light_buckets, false};
+
+    /*
+    auto lookup = [&](size_t k) {
+        size_t idx = hash(g(In[k])) >> shift_bits & heavy_id_mask;
+        while (heavy_id[idx].first != ULLONG_MAX && !equal(g(In[heavy_id[idx].first]), g(In[k]))) {
+        idx = (idx + 1) & heavy_id_mask;
+        }
+        return heavy_id[idx].second;
+    };
+    // 2. count the number of light/heavy keys
+    size_t LOG2_LIGHT_KEYS = std::min<size_t>(hash_bits - shift_bits, 10);
+    size_t LIGHT_MASK = (1 << LOG2_LIGHT_KEYS) - 1;
+    size_t light_buckets = 1 << LOG2_LIGHT_KEYS;
+    size_t heavy_buckets = heavy_seq.size();
+    size_t num_buckets = heavy_buckets + light_buckets;
+    auto f = [&](size_t i) {
+        size_t it = lookup(i);
+        if (it != ULLONG_MAX) {
+        // In[i] is a heavy key
+        return it + light_buckets;
+        } else {
+        // In[i] is a light key
+        size_t hash_v = hash(g(In[i])) >> shift_bits;
+        return hash_v & LIGHT_MASK;
+        }
+    };*/
+    /*
     // Sort the sample
     sequential(begin, begin + num_samples);
     auto splitter = begin + step - 1;
@@ -118,7 +188,7 @@ std::pair<int, bool> Sorter<Cfg>::buildClassifier(const iterator begin,
     this->classifier_ = &classifier;
 
     const int used_buckets = num_buckets * (1 + use_equal_buckets);
-    return {used_buckets, use_equal_buckets};
+    return {used_buckets, use_equal_buckets};*/
 }
 
 }  // namespace detail
