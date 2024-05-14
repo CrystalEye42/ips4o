@@ -96,7 +96,8 @@ void Sorter<Cfg>::queueTasks(const diff_t stripe, const int id,
                              const diff_t offset, const diff_t* bucket_start,
                              int num_buckets, bool equal_buckets) {
     // create a new task sorter on subsequent levels
-
+    num_buckets = 1024;
+    equal_buckets = false;
     const diff_t parent_task_stripe =
             (parent_task_size + task_num_threads - 1) / task_num_threads;
 

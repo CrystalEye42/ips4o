@@ -45,7 +45,7 @@
 
 #include "ips4o.hpp"
 
-size_t n = 100;
+size_t n = 10000000;
 size_t kNumTests = 4;
 constexpr int NUM_ROUNDS = 5;
 
@@ -125,15 +125,15 @@ std::vector<T> exponential_pairs_generator(double lambda) {
 template<class T>
 void run_all_dist() {
     // uniform distribution
-    std::vector<size_t> num_keys{1000000000, 10000000, 100000, 1000, 10};
+    std::vector<size_t> num_keys{100000, 1000, 10};
     for (auto v : num_keys) {
         auto seq = uniform_pairs_generator<T>(v);
-        for (auto e : seq) {
-            std::cout << e << " ";
-        }
         std::cout << "\ntest_name: semisort" << std::endl;
         double total_time = 0;
         for (int i = 0; i <= NUM_ROUNDS; i++) {
+            std::cout << "\ngenerating sequence..." << std::endl;
+            auto seq = uniform_pairs_generator<T>(v);
+            std::cout << "sorting..." << std::endl;
             auto last = std::chrono::system_clock::now();
             ips4o::parallel::sort(seq.begin(), seq.end(), std::less<>{});
             auto diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - last).count() / 1000000.0;
@@ -142,23 +142,17 @@ void run_all_dist() {
             } else {
             printf("Round %d: %f\n", i, diff);
             total_time += diff;
+            check_correctness(seq);
             }
         }
         double avg = total_time / NUM_ROUNDS;
         printf("Average: %f\n", avg);
-        for (auto e : seq) {
-            std::cout << e << " ";
-        }
-        check_correctness(seq);
     }
 
     // exponential distribution
     std::vector<double> lambda{0.00001, 0.00002, 0.00005, 0.00007, 0.0001};
     for (auto v : lambda) {
         auto seq = exponential_pairs_generator<T>(v);
-        for (auto e : seq) {
-            std::cout << e << " ";
-        }
         std::cout << "\ntest_name: semisort" << std::endl;
         double total_time = 0;
         for (int i = 0; i <= NUM_ROUNDS; i++) {
@@ -174,15 +168,12 @@ void run_all_dist() {
         }
         double avg = total_time / NUM_ROUNDS;
         printf("Average: %f\n", avg);
-        for (auto e : seq) {
-            std::cout << e << " ";
-        }
         check_correctness(seq);
     }
 }
 
 int main(int argc, char** argv) {
-    run_all_dist<uint32_t>();
+    run_all_dist<int32_t>();
     // run_all_dist<uint64_t>();
 //     std::random_device r;
 //     std::default_random_engine gen(r());

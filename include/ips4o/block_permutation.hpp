@@ -78,7 +78,7 @@ int Sorter<Cfg>::classifyAndReadBlock(const int read_bucket) {
     local_.swap[0].readFrom(begin_ + read);
     if (kIsParallel) bp.stopRead();
 
-    return classifier_->template classify<kEqualBuckets>(begin_, local_.swap[0].head());
+    return classifier_->template classify<kEqualBuckets>(local_.swap[0].head());
 }
 
 /**
@@ -108,7 +108,7 @@ int Sorter<Cfg>::swapBlock(const diff_t max_off, const int dest_bucket,
             return -1;
         }
         // Check if block needs to be moved
-        new_dest_bucket = classifier_->template classify<kEqualBuckets>(begin_, begin_[write]);
+        new_dest_bucket = classifier_->template classify<kEqualBuckets>(begin_[write]);
     } while (new_dest_bucket == dest_bucket);
 
     // Swap blocks

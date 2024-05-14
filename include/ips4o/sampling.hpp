@@ -87,27 +87,27 @@ std::pair<int, bool> Sorter<Cfg>::buildClassifier(const iterator begin,
             heavy_seq.push_back({hash_table[i].first, heavy_buckets++});
         }
     }
-    this->num_buckets_ = 1024 + heavy_buckets;
     const size_t LOG2_LIGHT_KEYS = 10;
     const size_t LIGHT_MASK = (1 << LOG2_LIGHT_KEYS) - 1;
     const size_t light_buckets = 1 << LOG2_LIGHT_KEYS;
+    this->num_buckets_ = light_buckets + heavy_buckets;
     
     // Construct lookup table
     size_t heavy_id_size = size_t{1} << log2_up(heavy_seq.size() * 5 + 1);
     size_t heavy_id_mask = heavy_id_size - 1;
-    std::vector<std::pair<size_t, size_t>> heavy_id(heavy_id_size, {ULLONG_MAX, ULLONG_MAX});
+    std::vector<std::pair<value_type, size_t>> heavy_id(heavy_id_size, {ULLONG_MAX, ULLONG_MAX});
     for (const auto& [k, v] : heavy_seq) {
         size_t idx = hash32(begin[k]) & heavy_id_mask;
         while (heavy_id[idx].first != ULLONG_MAX) {
             idx = (idx + 1) & heavy_id_mask;
         }
-        heavy_id[idx] = {k, v};
+        heavy_id[idx] = {begin[k], v};
+        //std::cout << k <<", "<<v <<std::endl;
     }
+    //std::cout << "done" << std::endl;
 
-    classifier.build(heavy_id, heavy_id_mask);
+    classifier.build(heavy_id, heavy_id_mask, heavy_buckets, begin);
     this->classifier_ = &classifier;
-    std::cout << "final " <<this->classifier_->heavy_id.size() << std::endl;
-
     
 
     return {heavy_buckets + light_buckets, false};

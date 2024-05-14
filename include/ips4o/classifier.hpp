@@ -55,8 +55,6 @@ class Sorter<Cfg>::Classifier {
     using less = typename Cfg::less;
 
  public:
-     std::vector<std::pair<size_t, size_t>> heavy_id;
-
     Classifier(less comp) : comp_(std::move(comp)) {}
 
     ~Classifier() {
@@ -82,24 +80,24 @@ class Sorter<Cfg>::Classifier {
      */
     less getComparator() const { return comp_; }
 
-    void build(std::vector<std::pair<size_t, size_t>> h_id, size_t mask) {
-        heavy_id = std::vector<std::pair<size_t, size_t>>();
+    void build(std::vector<std::pair<value_type, size_t>> h_id, size_t mask, size_t hb, iterator begin) {
+        heavy_buckets = hb;
+        heavy_id = std::vector<std::pair<value_type, size_t>>();
         for (auto [e1, e2]: h_id) {
             heavy_id.push_back({e1,e2});
-            std::cout << "build " <<e1 << " " << e2 << std::endl;
         }
         heavy_id_mask = mask;
+        orig_begin = begin;
     }
 
     /**
      * Classifies a single element.
      */
     template <bool kEqualBuckets>
-    bucket_type classify(iterator begin, const value_type& value) const {
-        const size_t heavy_buckets = heavy_id.size();
+    bucket_type classify(const value_type& value) const {
         const size_t num_buckets = heavy_buckets + light_buckets;
         size_t idx = hash32(value) & heavy_id_mask;
-        while (heavy_id[idx].first != ULLONG_MAX && begin[heavy_id[idx].first] != value) {
+        while (heavy_id[idx].first != ULLONG_MAX && heavy_id[idx].first != value) {
             idx = (idx + 1) & heavy_id_mask;
         }
         size_t it = heavy_id[idx].second;
@@ -120,26 +118,38 @@ class Sorter<Cfg>::Classifier {
      */
     template <bool kEqualBuckets, class Yield> 
     void classify(iterator begin, iterator end, Yield&& yield) const {
-        const size_t heavy_buckets = heavy_id.size();
+        for (auto [e1, e2]: heavy_id) {
+            if (e1 != ULLONG_MAX) {
+            //std::cout << "found "  <<orig_begin[e1] <<", "<< e1 << ", " << e2 << std::endl;
+            }
+        }
         const size_t num_buckets = heavy_buckets + light_buckets;
+        bool flag = true;
         for (int i = 0; i < end - begin; i++) {
-            auto value = begin[i];
+            const value_type value = begin[i];
             size_t idx = hash32(value) & heavy_id_mask;
-            while (heavy_id[idx].first != ULLONG_MAX && begin[heavy_id[idx].first] != value) {
+            size_t idx1 = hash32(value) & heavy_id_mask;
+
+            while (heavy_id[idx].first != ULLONG_MAX && heavy_id[idx].first != value) {
                 idx = (idx + 1) & heavy_id_mask;
+            }
+            if (flag && heavy_id[idx].first != value) {
+              //  std::cout << value<< ", " <<idx1 << ", "<<idx << ", "<<heavy_id[idx1].first << ", "<< heavy_id[idx].first <<std::endl;
+                flag = false;
             }
             size_t it = heavy_id[idx].second;
             if (it != ULLONG_MAX) {
             // In[i] is a heavy key
                         //std::cout << "classify result " << " " << value << ", " << it + light_buckets << std::endl;
 
-                yield(it + light_buckets, begin);
+                yield(it + light_buckets, begin + i);
             } else {
+                //std::cout << "ERROR " << i << ", " << value  << std::endl;
                 // In[i] is a light key
                 size_t hash_v = hash32(value);
                             //std::cout << "classify result " << value << ", " << (hash_v & LIGHT_MASK) << std::endl;
 
-                yield(hash_v & LIGHT_MASK, begin);
+                yield(hash_v & LIGHT_MASK, begin + i);
             }
         }
     }
@@ -148,8 +158,11 @@ class Sorter<Cfg>::Classifier {
     const size_t LOG2_LIGHT_KEYS = 10;
     const size_t LIGHT_MASK = (1 << LOG2_LIGHT_KEYS) - 1;
     const size_t light_buckets = 1 << LOG2_LIGHT_KEYS;
+    std::vector<std::pair<value_type, size_t>> heavy_id;
+    size_t heavy_buckets;
     size_t hash_table_mask;
     size_t heavy_id_mask;
+    iterator orig_begin;
     
 
     const value_type& splitter(bucket_type i) const {

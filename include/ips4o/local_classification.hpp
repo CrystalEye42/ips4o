@@ -143,6 +143,11 @@ void Sorter<Cfg>::parallelClassification(const bool use_equal_buckets) {
         local_.first_empty_block = my_first_empty_block;
 
         shared_->sync.barrier();
+        if (this->my_id_ == 0) {
+            for (int i = 0, end = num_buckets_; i < end; ++i) {
+                //std::cout << i << ": " << bucket_start_[i] << std::endl;
+            }
+        }
 
 #ifdef IPS4O_TIMER
         g_classification.stop();

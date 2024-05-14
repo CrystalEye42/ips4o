@@ -143,11 +143,6 @@ ParallelSorter<ExtendedConfig<It, Comp, Cfg>> make_sorter(
 template <class Cfg = Config<>, class It, class Comp, class ThreadPool>
 std::enable_if_t<std::is_class<std::remove_reference_t<ThreadPool>>::value> sort(
         It begin, It end, Comp comp, ThreadPool&& thread_pool) {
-#ifdef IPS4O_TIMER
-    g_active_counters = -1;
-    g_total.start();
-    g_overhead.start();
-#endif
     if (Cfg::numThreadsFor(begin, end, thread_pool.numThreads()) < 2) {
         ips4o::sort<Cfg>(std::move(begin), std::move(end), std::move(comp));
     } else if (!detail::isSorted(begin, end, comp, thread_pool)) {
@@ -155,20 +150,17 @@ std::enable_if_t<std::is_class<std::remove_reference_t<ThreadPool>>::value> sort
                 std::forward<ThreadPool>(thread_pool), std::move(comp), false);
         sorter(std::move(begin), std::move(end)); // goes here
     }
-
-#ifdef IPS4O_TIMER
-    g_overhead.stop();
-    g_total.stop();
-#endif
 }
 
 template <class Cfg = Config<>, class It, class Comp>
 void sort(It begin, It end, Comp comp, int num_threads) {
     num_threads = Cfg::numThreadsFor(begin, end, num_threads);
-    if (num_threads < 2)
+    if (num_threads < 2){
         ips4o::sort<Cfg>(std::move(begin), std::move(end), std::move(comp));
-    else
+    }
+    else {
         ips4o::parallel::sort<Cfg>(begin, end, comp, DefaultThreadPool(num_threads));
+    }
 }
 
 /**

@@ -37,35 +37,60 @@
 #include <iostream>
 #include <random>
 #include <vector>
+#include <unordered_set>
 
 #include "ips4o.hpp"
+
+template<class T>
+void check_correctness(const std::vector<T> in, std::vector<int> counts) {
+    std::unordered_set<T> s{};
+    T prev = in[0];
+    s.insert(prev);
+    for (auto &e : in) {
+        counts[e]--;
+        if (e != prev) {
+            if (s.find(e) != s.end()) {
+                fprintf(stderr, "Error: not semisorted\n");
+                std::cout << "\nfound duplicate of " << e << std::endl;
+                exit(EXIT_FAILURE);
+            } else {
+                s.insert(e);
+            }
+            prev = e;
+        }
+    }
+    for (int i = 0; i < counts.size(); i++) {
+        if (counts[i] != 0) {
+            fprintf(stderr, "Error: not semisorted\n");
+            std::cout << "\nfound incorrect count of " << i << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        //std::cout << i << ": " << counts[i]  << std::endl;
+    }
+    printf("Pass\n");
+}
 
 int main(int argc, char** argv) {
     std::random_device r;
     std::default_random_engine gen(r());
     std::uniform_real_distribution<double> dist;
 
-    std::vector<int> v(10000);
-    /*
+    std::vector<int> v(10000000);
+    int range = 1000000;
+    std::vector<int> counts(range, 0);
+    
     for (auto& e : v) {
-        e = int(dist(gen) * 100);
-        std::cout << e << " ";
+        e = int(dist(gen) * range);
+        //std::cout << e << " ";
+        counts[e]++;
     }
-    std::cout << std::endl;*/
-
 #if defined(_REENTRANT)
-    //std::cout << "bruh" << std::endl;
     ips4o::parallel::sort(v.begin(), v.end(), std::less<>{});
 #else
     ips4o::sort(v.begin(), v.end(), std::less<>{});
 #endif
-    std::cout<< std::endl;
-    for (auto e : v) {
-        //std::cout << e << " ";
-    }
-    //std::cout << "bruh" << std::endl;
     //const bool sorted = std::is_sorted(v.begin(), v.end(), std::less<>{});
     //std::cout << "Elements are sorted: " << std::boolalpha << sorted << std::endl;
-
+    check_correctness(v, counts);
     return 0;
 }
