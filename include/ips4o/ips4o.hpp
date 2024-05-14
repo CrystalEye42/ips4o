@@ -35,6 +35,8 @@
 
 #pragma once
 
+#define _REENTRANT
+
 #include <functional>
 #include <iterator>
 #include <type_traits>
