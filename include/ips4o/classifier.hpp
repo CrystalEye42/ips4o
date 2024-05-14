@@ -55,6 +55,8 @@ class Sorter<Cfg>::Classifier {
     using less = typename Cfg::less;
 
  public:
+     std::vector<std::pair<size_t, size_t>> heavy_id;
+
     Classifier(less comp) : comp_(std::move(comp)) {}
 
     ~Classifier() {
@@ -81,21 +83,12 @@ class Sorter<Cfg>::Classifier {
     less getComparator() const { return comp_; }
 
     void build(std::vector<std::pair<size_t, size_t>> h_id, size_t mask) {
-        heavy_id = h_id;
+        heavy_id = std::vector<std::pair<size_t, size_t>>();
+        for (auto [e1, e2]: h_id) {
+            heavy_id.push_back({e1,e2});
+            std::cout << "build " <<e1 << " " << e2 << std::endl;
+        }
         heavy_id_mask = mask;
-    }
-
-    /**
-     * Builds the tree from the sorted splitters.
-     */
-    void build(int log_buckets) {
-        log_buckets_ = log_buckets;
-        num_buckets_ = 1 << log_buckets;
-        const auto num_splitters = (1 << log_buckets) - 1;
-        IPS4OML_ASSUME_NOT(getSortedSplitters() + num_splitters == nullptr);
-        new (getSortedSplitters() + num_splitters)
-                value_type(getSortedSplitters()[num_splitters - 1]);
-        build(getSortedSplitters(), getSortedSplitters() + num_splitters, 1);
     }
 
     /**
@@ -112,10 +105,12 @@ class Sorter<Cfg>::Classifier {
         size_t it = heavy_id[idx].second;
         if (it != ULLONG_MAX) {
         // In[i] is a heavy key
+            //std::cout << "local classify result " << value << ", " << it + light_buckets << std::endl;
             return it + light_buckets;
         } else {
             // In[i] is a light key
             size_t hash_v = hash32(value);
+            //std::cout << "local classify result " << value << ", " << (hash_v & LIGHT_MASK) << std::endl;
             return hash_v & LIGHT_MASK;
         }
     }
@@ -127,8 +122,8 @@ class Sorter<Cfg>::Classifier {
     void classify(iterator begin, iterator end, Yield&& yield) const {
         const size_t heavy_buckets = heavy_id.size();
         const size_t num_buckets = heavy_buckets + light_buckets;
-        for (; begin != end; ++begin) {
-            const auto value = *begin;
+        for (int i = 0; i < end - begin; i++) {
+            auto value = begin[i];
             size_t idx = hash32(value) & heavy_id_mask;
             while (heavy_id[idx].first != ULLONG_MAX && begin[heavy_id[idx].first] != value) {
                 idx = (idx + 1) & heavy_id_mask;
@@ -136,10 +131,14 @@ class Sorter<Cfg>::Classifier {
             size_t it = heavy_id[idx].second;
             if (it != ULLONG_MAX) {
             // In[i] is a heavy key
+                        //std::cout << "classify result " << " " << value << ", " << it + light_buckets << std::endl;
+
                 yield(it + light_buckets, begin);
             } else {
                 // In[i] is a light key
                 size_t hash_v = hash32(value);
+                            //std::cout << "classify result " << value << ", " << (hash_v & LIGHT_MASK) << std::endl;
+
                 yield(hash_v & LIGHT_MASK, begin);
             }
         }
@@ -152,7 +151,6 @@ class Sorter<Cfg>::Classifier {
     size_t hash_table_mask;
     size_t heavy_id_mask;
     
-    std::vector<std::pair<size_t, size_t>> heavy_id;
 
     const value_type& splitter(bucket_type i) const {
         return static_cast<const value_type*>(static_cast<const void*>(storage_))[i];

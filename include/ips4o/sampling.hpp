@@ -49,24 +49,6 @@ namespace ips4o {
 namespace detail {
 
 /**
- * Selects a random sample in-place.
- */
-template <class It, class RandomGen>
-void selectSample(It begin, const It end,
-                  typename std::iterator_traits<It>::difference_type num_samples,
-                  RandomGen&& gen) {
-    using std::swap;
-
-    auto n = end - begin;
-    while (num_samples--) {
-        const auto i = std::uniform_int_distribution<
-                typename std::iterator_traits<It>::difference_type>(0, --n)(gen);
-        swap(*begin, begin[i]);
-        ++begin;
-    }
-}
-
-/**
  * Builds the classifer.
  * Number of used_buckets is a power of two and at least two.
  */
@@ -105,6 +87,7 @@ std::pair<int, bool> Sorter<Cfg>::buildClassifier(const iterator begin,
             heavy_seq.push_back({hash_table[i].first, heavy_buckets++});
         }
     }
+    this->num_buckets_ = 1024 + heavy_buckets;
     const size_t LOG2_LIGHT_KEYS = 10;
     const size_t LIGHT_MASK = (1 << LOG2_LIGHT_KEYS) - 1;
     const size_t light_buckets = 1 << LOG2_LIGHT_KEYS;
@@ -123,6 +106,9 @@ std::pair<int, bool> Sorter<Cfg>::buildClassifier(const iterator begin,
 
     classifier.build(heavy_id, heavy_id_mask);
     this->classifier_ = &classifier;
+    std::cout << "final " <<this->classifier_->heavy_id.size() << std::endl;
+
+    
 
     return {heavy_buckets + light_buckets, false};
 

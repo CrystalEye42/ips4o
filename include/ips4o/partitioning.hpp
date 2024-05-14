@@ -97,13 +97,11 @@ std::pair<int, bool> Sorter<Cfg>::partition(const iterator begin, const iterator
     g_sampling.stop();
     g_classification.start();
 #endif
-
     // Local Classification
     if (kIsParallel)
         parallelClassification(use_equal_buckets);
     else
         sequentialClassification(use_equal_buckets);
-
 #ifdef IPS4O_TIMER
     g_classification.stop(end - begin, "class");
     g_permutation.start();

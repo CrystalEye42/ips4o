@@ -159,7 +159,6 @@ void Sorter<Cfg>::moveEmptyBlocks(const diff_t my_begin, const diff_t my_end,
         // This is the range of blocks we want to fill
         auto write_ptr = begin_ + std::max(my_first_empty_block, bucket_start);
         const auto write_ptr_end = begin_ + std::min(first_empty_block_in_bucket, my_end);
-
         // Read from other stripes until we filled our blocks
         while (write_ptr < write_ptr_end) {
             --read_from_thread;

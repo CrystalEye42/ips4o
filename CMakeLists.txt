@@ -63,3 +63,5 @@ endif()
 
 add_executable(ips4o_example src/example.cpp)
 target_link_libraries(ips4o_example PRIVATE ips4o)
+add_executable(ips4o_test src/example1.cpp)
+target_link_libraries(ips4o_test PRIVATE ips4o)

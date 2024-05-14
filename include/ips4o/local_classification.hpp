@@ -66,8 +66,10 @@ typename Cfg::difference_type Sorter<Cfg>::classifyLocally(const iterator my_beg
             });
 
     // Update bucket sizes to account for partially filled buckets
-    for (int i = 0, end = num_buckets_; i < end; ++i)
+    for (int i = 0, end = num_buckets_; i < end; ++i){
         local_.bucket_size[i] += local_.buffers.size(i);
+            //std::cout << "buff size" <<local_.buffers.size(i) << std::endl;
+                                                           }
 
     return write - begin_;
 }

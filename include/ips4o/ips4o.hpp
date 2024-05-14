@@ -148,13 +148,12 @@ std::enable_if_t<std::is_class<std::remove_reference_t<ThreadPool>>::value> sort
     g_total.start();
     g_overhead.start();
 #endif
-
     if (Cfg::numThreadsFor(begin, end, thread_pool.numThreads()) < 2) {
         ips4o::sort<Cfg>(std::move(begin), std::move(end), std::move(comp));
     } else if (!detail::isSorted(begin, end, comp, thread_pool)) {
         auto sorter = ips4o::parallel::make_sorter<It, Cfg>(
                 std::forward<ThreadPool>(thread_pool), std::move(comp), false);
-        sorter(std::move(begin), std::move(end));
+        sorter(std::move(begin), std::move(end)); // goes here
     }
 
 #ifdef IPS4O_TIMER
