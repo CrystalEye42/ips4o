@@ -55,7 +55,8 @@ namespace detail {
 template <class Cfg>
 std::pair<int, bool> Sorter<Cfg>::buildClassifier(const iterator begin,
                                                   const iterator end,
-                                                  Classifier& classifier) {
+                                                  Classifier& classifier, 
+                                                  const uint32_t shift_bits) {
     const auto n = end - begin;
     const size_t hash_bits = sizeof(uint32_t) * 8;
 
@@ -106,7 +107,7 @@ std::pair<int, bool> Sorter<Cfg>::buildClassifier(const iterator begin,
     }
     //std::cout << "done" << std::endl;
 
-    classifier.build(heavy_id, heavy_id_mask, heavy_buckets, begin);
+    classifier.build(heavy_id, heavy_id_mask, heavy_buckets, shift_bits);
     this->classifier_ = &classifier;
     
 

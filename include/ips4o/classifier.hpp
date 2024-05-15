@@ -80,14 +80,14 @@ class Sorter<Cfg>::Classifier {
      */
     less getComparator() const { return comp_; }
 
-    void build(std::vector<std::pair<value_type, size_t>> h_id, size_t mask, size_t hb, iterator begin) {
+    void build(std::vector<std::pair<value_type, size_t>> h_id, size_t mask, size_t hb, uint32_t sb) {
         heavy_buckets = hb;
         heavy_id = std::vector<std::pair<value_type, size_t>>();
         for (auto [e1, e2]: h_id) {
             heavy_id.push_back({e1,e2});
         }
         heavy_id_mask = mask;
-        orig_begin = begin;
+        shift_bits = sb;
     }
 
     /**
@@ -107,7 +107,7 @@ class Sorter<Cfg>::Classifier {
             return it + light_buckets;
         } else {
             // In[i] is a light key
-            size_t hash_v = hash32(value);
+            size_t hash_v = (hash32(value)>>shift_bits);
             //std::cout << "local classify result " << value << ", " << (hash_v & LIGHT_MASK) << std::endl;
             return hash_v & LIGHT_MASK;
         }
@@ -128,7 +128,6 @@ class Sorter<Cfg>::Classifier {
         for (int i = 0; i < end - begin; i++) {
             const value_type value = begin[i];
             size_t idx = hash32(value) & heavy_id_mask;
-            size_t idx1 = hash32(value) & heavy_id_mask;
 
             while (heavy_id[idx].first != ULLONG_MAX && heavy_id[idx].first != value) {
                 idx = (idx + 1) & heavy_id_mask;
@@ -146,7 +145,7 @@ class Sorter<Cfg>::Classifier {
             } else {
                 //std::cout << "ERROR " << i << ", " << value  << std::endl;
                 // In[i] is a light key
-                size_t hash_v = hash32(value);
+                size_t hash_v = hash32(value)>>shift_bits;
                             //std::cout << "classify result " << value << ", " << (hash_v & LIGHT_MASK) << std::endl;
 
                 yield(hash_v & LIGHT_MASK, begin + i);
@@ -162,7 +161,7 @@ class Sorter<Cfg>::Classifier {
     size_t heavy_buckets;
     size_t hash_table_mask;
     size_t heavy_id_mask;
-    iterator orig_begin;
+    uint32_t shift_bits;
     
 
     const value_type& splitter(bucket_type i) const {

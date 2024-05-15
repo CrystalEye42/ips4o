@@ -68,11 +68,11 @@ std::pair<int, bool> Sorter<Cfg>::partition(const iterator begin, const iterator
     {
         if (!kIsParallel) {
             std::tie(this->num_buckets_, use_equal_buckets) =
-                    buildClassifier(begin, end, local_.classifier);
+                    buildClassifier(begin, end, local_.classifier, hash32(end-begin) % 16);
         } else {
             shared_->sync.single([&] {
                 std::tie(this->num_buckets_, use_equal_buckets) =
-                        buildClassifier(begin, end, shared_->classifier);
+                        buildClassifier(begin, end, shared_->classifier, hash32(end-begin) % 16);
                 shared_->num_buckets = this->num_buckets_;
                 shared_->use_equal_buckets = use_equal_buckets;
             });

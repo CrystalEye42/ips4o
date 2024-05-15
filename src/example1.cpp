@@ -84,6 +84,7 @@ int main(int argc, char** argv) {
         //std::cout << e << " ";
         counts[e]++;
     }
+    std::cout << "Sorting..." << std::endl;
     auto last = std::chrono::system_clock::now();
 #if defined(_REENTRANT)
     ips4o::parallel::sort(v.begin(), v.end(), std::less<>{});

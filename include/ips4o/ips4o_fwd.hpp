@@ -121,7 +121,7 @@ class Sorter {
     static inline int computeLogBuckets(diff_t n);
 
     std::pair<int, bool> buildClassifier(iterator begin, iterator end,
-                                         Classifier& classifier);
+                                         Classifier& classifier, const uint32_t shift_bits);
 
     template <bool kEqualBuckets>
     __attribute__((flatten)) diff_t classifyLocally(iterator my_begin, iterator my_end);
