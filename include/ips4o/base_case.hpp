@@ -39,6 +39,7 @@
 #include <cstddef>
 #include <utility>
 #include <vector>
+#include <unordered_set>
 
 #include "ips4o_fwd.hpp"
 #include "utils.hpp"
@@ -70,12 +71,47 @@ void insertionSort(const It begin, const It end, Comp comp) {
 }
 
 /**
+ * Hash table equal sort
+ */
+template <class It, class Comp>
+void countingSort(const It begin, const It end, Comp comp) {
+    const auto n = end - begin;
+    if (n<=0) {
+        return;
+    }
+    const size_t hash_table_size = size_t{1} << log2_up(static_cast<size_t>(n * 1.2));
+    const size_t hash_table_mask = hash_table_size - 1;
+    //std::cout << hash_table_size << std::endl;
+    std::vector<std::pair<size_t, size_t>> hash_table(hash_table_size, {ULLONG_MAX, 0});
+    for (int i = 0; i < n; ++i) {
+        //std::cout << "index " << i << std::endl;
+        const auto v = begin[i];
+        size_t idx = hash32(v) & hash_table_mask;
+        while (hash_table[idx].first != ULLONG_MAX && v != hash_table[idx].first) {
+            idx = (idx + 1) & hash_table_mask;
+        }
+        if (hash_table[idx].first == ULLONG_MAX) {
+            hash_table[idx].first = v;
+        }
+        hash_table[idx].second++;
+    }
+    It it = begin;
+    for (const auto& [v, count]: hash_table) {
+        for (int i = 0; i < count; ++i) {
+            it[i] = v;
+        }
+        it += count;
+    }
+}
+
+/**
  * Wrapper for base case sorter, for easier swapping.
  */
 template <class It, class Comp>
 inline void baseCaseSort(It begin, It end, Comp&& comp) {
-    if (begin == end) return;
-    detail::insertionSort(std::move(begin), std::move(end), std::forward<Comp>(comp));
+    //if (begin == end) return;
+    //detail::insertionSort(std::move(begin), std::move(end), std::forward<Comp>(comp));
+    detail::countingSort(std::move(begin), std::move(end), std::forward<Comp>(comp));
 }
 
 template <class It, class Comp, class ThreadPool>

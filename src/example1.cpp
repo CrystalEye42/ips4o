@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
     std::default_random_engine gen(r());
     std::uniform_real_distribution<double> dist;
 
-    std::vector<int> v(10000000);
+    std::vector<int> v(100000000);
     int range = 1000000;
     std::vector<int> counts(range, 0);
     
@@ -84,11 +84,14 @@ int main(int argc, char** argv) {
         //std::cout << e << " ";
         counts[e]++;
     }
+    auto last = std::chrono::system_clock::now();
 #if defined(_REENTRANT)
     ips4o::parallel::sort(v.begin(), v.end(), std::less<>{});
 #else
     ips4o::sort(v.begin(), v.end(), std::less<>{});
 #endif
+    auto diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - last).count() / 1000000.0;
+    std::cout << "Time Elapsed: " << diff << std::endl;
     //const bool sorted = std::is_sorted(v.begin(), v.end(), std::less<>{});
     //std::cout << "Elements are sorted: " << std::boolalpha << sorted << std::endl;
     check_correctness(v, counts);

@@ -65,8 +65,8 @@ std::pair<int, bool> Sorter<Cfg>::buildClassifier(const iterator begin,
     const size_t NUM_SAMPLES = SAMPLE_QUOTIENT * HEAVY_THRESHOLD;
 
     std::vector<std::pair<size_t, size_t>> heavy_seq;
-    size_t hash_table_size = size_t{1} << log2_up(static_cast<size_t>(NUM_SAMPLES * LOAD_FACTOR));
-    size_t hash_table_mask = hash_table_size - 1;
+    const size_t hash_table_size = size_t{1} << log2_up(static_cast<size_t>(NUM_SAMPLES * LOAD_FACTOR));
+    const size_t hash_table_mask = hash_table_size - 1;
     std::vector<std::pair<size_t,size_t>> hash_table(hash_table_size, {ULLONG_MAX, 0});
 
     // Select the sample
