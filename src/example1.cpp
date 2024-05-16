@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
     std::uniform_real_distribution<double> dist;
 
     std::vector<int> v(100000000);
-    int range = 1000000;
+    int range = 10000000;
     std::vector<int> counts(range, 0);
     
     for (auto& e : v) {

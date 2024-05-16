@@ -69,10 +69,10 @@ std::pair<int, bool> Sorter<Cfg>::buildClassifier(const iterator begin,
     const size_t hash_table_size = size_t{1} << log2_up(static_cast<size_t>(NUM_SAMPLES * LOAD_FACTOR));
     const size_t hash_table_mask = hash_table_size - 1;
     std::vector<std::pair<size_t,size_t>> hash_table(hash_table_size, {ULLONG_MAX, 0});
-
+    //std::cout << "num samples " << NUM_SAMPLES << ", threshold " << HEAVY_THRESHOLD << std::endl;
     // Select the sample
     for (size_t i = 0; i < NUM_SAMPLES; i++) {
-        size_t v = hash64(i) % n;
+        size_t v = (hash64(i)>>shift_bits) % n;
         size_t idx = hash32(begin[v]) & hash_table_mask;
         while (hash_table[idx].first != ULLONG_MAX && begin[v] != begin[hash_table[idx].first]) {
             idx = (idx + 1) & hash_table_mask;
@@ -86,9 +86,10 @@ std::pair<int, bool> Sorter<Cfg>::buildClassifier(const iterator begin,
     for (size_t i = 0; i < hash_table_size; i++) {
         if (hash_table[i].second >= HEAVY_THRESHOLD) {
             heavy_seq.push_back({hash_table[i].first, heavy_buckets++});
+            //std::cout << hash_table[i].first <<", " << hash_table[i].second<< ", "<<n << std::endl;
         }
     }
-    const size_t LOG2_LIGHT_KEYS = 10;
+    const size_t LOG2_LIGHT_KEYS = (n > 512) ? 10 : log2_up(n);
     const size_t LIGHT_MASK = (1 << LOG2_LIGHT_KEYS) - 1;
     const size_t light_buckets = 1 << LOG2_LIGHT_KEYS;
     this->num_buckets_ = light_buckets + heavy_buckets;
@@ -107,10 +108,10 @@ std::pair<int, bool> Sorter<Cfg>::buildClassifier(const iterator begin,
     }
     //std::cout << "done" << std::endl;
 
-    classifier.build(heavy_id, heavy_id_mask, heavy_buckets, shift_bits);
+    classifier.build(heavy_id, heavy_id_mask, heavy_buckets, shift_bits, LOG2_LIGHT_KEYS);
     this->classifier_ = &classifier;
     
-
+    //std::cout << "done" << std::endl;
     return {heavy_buckets + light_buckets, false};
 
     /*

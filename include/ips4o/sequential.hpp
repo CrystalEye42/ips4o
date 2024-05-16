@@ -63,7 +63,7 @@ void Sorter<Cfg>::sequential(const iterator begin, const Task& task,
     // Do the partitioning
     const auto res =
             partition<false>(begin + task.begin, begin + task.end, bucket_start, 0, 1);
-    const int num_buckets = std::get<0>(res);
+    const int num_buckets = 1024;
     const bool equal_buckets = std::get<1>(res);
 
     // Final base case is executed in cleanup step, so we're done here

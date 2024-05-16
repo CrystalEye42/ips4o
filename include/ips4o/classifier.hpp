@@ -80,7 +80,10 @@ class Sorter<Cfg>::Classifier {
      */
     less getComparator() const { return comp_; }
 
-    void build(std::vector<std::pair<value_type, size_t>> h_id, size_t mask, size_t hb, uint32_t sb) {
+    void build(std::vector<std::pair<value_type, size_t>> h_id, size_t mask, size_t hb, uint32_t sb, size_t log_light) {
+        LOG2_LIGHT_KEYS = log_light;
+        LIGHT_MASK = (1 << LOG2_LIGHT_KEYS) - 1;
+        light_buckets = 1 << LOG2_LIGHT_KEYS;
         heavy_buckets = hb;
         heavy_id = std::vector<std::pair<value_type, size_t>>();
         for (auto [e1, e2]: h_id) {
@@ -154,9 +157,9 @@ class Sorter<Cfg>::Classifier {
     }
 
  private:
-    const size_t LOG2_LIGHT_KEYS = 10;
-    const size_t LIGHT_MASK = (1 << LOG2_LIGHT_KEYS) - 1;
-    const size_t light_buckets = 1 << LOG2_LIGHT_KEYS;
+    size_t LOG2_LIGHT_KEYS = 10;
+    size_t LIGHT_MASK = (1 << LOG2_LIGHT_KEYS) - 1;
+    size_t light_buckets = 1 << LOG2_LIGHT_KEYS;
     std::vector<std::pair<value_type, size_t>> heavy_id;
     size_t heavy_buckets;
     size_t hash_table_mask;
