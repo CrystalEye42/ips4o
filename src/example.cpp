@@ -45,8 +45,7 @@
 
 #include "ips4o.hpp"
 
-size_t n = 10000000;
-size_t kNumTests = 4;
+std::vector<size_t> n_sizes{100, 1000, 10000, 100000, 1000000, 10000000, 100000000};
 constexpr int NUM_ROUNDS = 5;
 
 template<class T>
@@ -70,105 +69,122 @@ void check_correctness(const std::vector<T> in) {
 }
 
 template<class T>
-double test(const std::vector<T> in) {
-    std::cout << "test_name: semisort" << std::endl;
-    double total_time = 0;
-    for (int i = 0; i <= NUM_ROUNDS; i++) {
-        auto last = std::chrono::system_clock::now();
-        auto diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - last).count() / 1000000.0;
-        if (i == 0) {
-        printf("Warmup round: %f\n", diff);
-        } else {
-        printf("Round %d: %f\n", i, diff);
-        total_time += diff;
-        }
-    }
-    double avg = total_time / NUM_ROUNDS;
-    printf("Average: %f\n", avg);
-    return avg;
-}
-
-template<class T>
-void run_all(const std::vector<T> &seq) {
-  // get_distribution(seq);
-    test(seq);
-    //check_correctness(seq);
-    printf("\n");
-}
-
-template<class T>
-std::vector<T> uniform_pairs_generator(size_t num_keys) {
-    std::random_device r;
-    std::default_random_engine gen(r());
-    std::uniform_real_distribution<double> dist;
-    printf("uniform distribution with num_keys: %zu\n", num_keys);
+std::vector<T> uniform_pairs_generator(size_t num_keys, size_t n) {
+    printf("uniform distribution with num_keys: %zu, n: %zu\n", num_keys, n);
     std::vector<T> seq(n);
-    for(auto& e : seq) {
-        e = T(dist(gen) * num_keys);
+    for (int i=0; i < n; i++) {
+        seq[i] = i % num_keys;
     }
     return seq;
 }
 
 template<class T>
-std::vector<T> exponential_pairs_generator(double lambda) {
-    std::random_device r;
-    std::default_random_engine gen(r());
-    std::exponential_distribution<double> dist(lambda);
-    printf("exponential distribution with lambda: %.10f\n", lambda);
+std::vector<T> exponential_pairs_generator(double lambda, size_t n) {
+    printf("exponential distribution with lambda: %.10f, n: %zu\n", lambda, n);
     std::vector<T> seq(n);
-    for(auto& e : seq) {
-        e = T(std::max(1.0, dist(gen) * n));
+    double ratio = n > 100000 ? 100000/(n * lambda) : n/(n * lambda);
+    for(int i=0; i < n; i++) {
+        seq[i] = std::max(1.0, ratio * n * (lambda * exp(-lambda * (i + 0.5))));
+    }
+    return seq;
+}
+
+template<class T>
+std::vector<T> zipfian_pairs_generator(double s, size_t n) {
+    printf("zipfian distribution with s: %.10f, n: %zu\n", s, n);
+    std::vector<T> seq(n);
+    double total = 0;
+    for(int i=0; i < n; i++) {
+        total += 1.0 / pow(i + 1, s);
+    }
+    double v = total/n;
+    double harmonic = 1.0;
+    int harmonicidx = 2;
+    double tmptotal = 0;
+    double ratio = n > 100000 ? n/100000 : 1;
+    for(int i=0; i < n; i++) {
+        seq[i] = (harmonicidx + (ratio - 2))/ratio;
+        tmptotal += v;
+        while (tmptotal > harmonic) {
+            harmonic += 1.0/pow(harmonicidx, s);
+            harmonicidx += 1;
+        }
     }
     return seq;
 }
 
 template<class T>
 void run_all_dist() {
+    std::random_device r;
+    std::default_random_engine gen(r());
     // uniform distribution
-    std::vector<size_t> num_keys{100000, 1000, 10};
-    for (auto v : num_keys) {
-        auto seq = uniform_pairs_generator<T>(v);
-        std::cout << "\ntest_name: semisort" << std::endl;
-        double total_time = 0;
-        for (int i = 0; i <= NUM_ROUNDS; i++) {
-            std::cout << "\ngenerating sequence..." << std::endl;
-            auto seq = uniform_pairs_generator<T>(v);
-            std::cout << "sorting..." << std::endl;
-            auto last = std::chrono::system_clock::now();
-            ips4o::parallel::sort(seq.begin(), seq.end(), std::less<>{});
-            auto diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - last).count() / 1000000.0;
-            if (i == 0) {
-            printf("Warmup round: %f\n", diff);
-            } else {
-            printf("Round %d: %f\n", i, diff);
-            total_time += diff;
-            check_correctness(seq);
+    for (auto n: n_sizes) {
+        std::vector<size_t> num_keys{100000, 1000, 10};
+        std::cout << "test_name: uniform, n: " << n << std::endl;
+        for (auto v : num_keys) {
+            double total_time = 0;
+            auto seq = uniform_pairs_generator<T>(v, n);
+            for (int i = 0; i <= NUM_ROUNDS; i++) {
+                std::shuffle(seq.begin(), seq.end(), gen);
+                auto last = std::chrono::system_clock::now();
+                ips4o::parallel::sort(seq.begin(), seq.end(), std::less<>{});
+                auto diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - last).count() / 1000000.0;
+                if (i == 0) {
+                    printf("Warmup round: %f ", diff);
+                } else {
+                    printf("Round %d: %f ", i, diff);
+                    total_time += diff;
+                    check_correctness(seq);
+                }
             }
+            double avg = total_time / NUM_ROUNDS;
+            printf("Average: %f\n", avg);
         }
-        double avg = total_time / NUM_ROUNDS;
-        printf("Average: %f\n", avg);
-    }
 
-    // exponential distribution
-    std::vector<double> lambda{0.00001, 0.00002, 0.00005, 0.00007, 0.0001};
-    for (auto v : lambda) {
-        auto seq = exponential_pairs_generator<T>(v);
-        std::cout << "\ntest_name: semisort" << std::endl;
-        double total_time = 0;
-        for (int i = 0; i <= NUM_ROUNDS; i++) {
-            auto last = std::chrono::system_clock::now();
-            ips4o::parallel::sort(seq.begin(), seq.end(), std::less<>{});
-            auto diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - last).count() / 1000000.0;
-            if (i == 0) {
-            printf("Warmup round: %f\n", diff);
-            } else {
-            printf("Round %d: %f\n", i, diff);
-            total_time += diff;
+        // exponential distribution
+        std::vector<double> lambda{10.0/n, 20.0/n, 50.0/n, 70.0/n, 100.0/n};
+        std::cout << "test_name: exponential, n: " << n << std::endl;
+        for (auto v : lambda) {
+            double total_time = 0;
+            auto seq = exponential_pairs_generator<T>(v, n);
+            for (int i = 0; i <= NUM_ROUNDS; i++) {
+                std::shuffle(seq.begin(), seq.end(), gen);
+                auto last = std::chrono::system_clock::now();
+                ips4o::parallel::sort(seq.begin(), seq.end(), std::less<>{});
+                auto diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - last).count() / 1000000.0;
+                if (i == 0) {
+                    printf("Warmup round: %f ", diff);
+                } else {
+                    printf("Round %d: %f ", i, diff);
+                    total_time += diff;
+                    check_correctness(seq);
+                }
             }
+            double avg = total_time / NUM_ROUNDS;
+            printf("Average: %f\n", avg);
         }
-        double avg = total_time / NUM_ROUNDS;
-        printf("Average: %f\n", avg);
-        check_correctness(seq);
+
+        std::vector<double> s{0.6, 0.8, 1, 1.2, 1.5};
+        std::cout << "test_name: zipfian, n: " << n << std::endl;
+        for (auto v : s) {
+            double total_time = 0;
+            auto seq = zipfian_pairs_generator<T>(v, n);
+            for (int i = 0; i <= NUM_ROUNDS; i++) {
+                std::shuffle(seq.begin(), seq.end(), gen);
+                auto last = std::chrono::system_clock::now();
+                ips4o::parallel::sort(seq.begin(), seq.end(), std::less<>{});
+                auto diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - last).count() / 1000000.0;
+                if (i == 0) {
+                    printf("Warmup round: %f ", diff);
+                } else {
+                    printf("Round %d: %f ", i, diff);
+                    total_time += diff;
+                    check_correctness(seq);
+                }
+            }
+            double avg = total_time / NUM_ROUNDS;
+            printf("Average: %f\n", avg);
+        }
     }
 }
 
