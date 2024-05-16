@@ -36,6 +36,7 @@
 #include <atomic>
 #include <iomanip>
 #include <iostream>
+#include <fstream>
 #include <random>
 #include <vector>
 #include <fstream>
@@ -45,7 +46,7 @@
 
 #include "ips4o.hpp"
 
-std::vector<size_t> n_sizes{100, 1000, 10000, 100000, 1000000, 10000000, 100000000};
+std::vector<size_t> n_sizes{1000000000};
 constexpr int NUM_ROUNDS = 5;
 
 template<class T>
@@ -118,10 +119,12 @@ void run_all_dist() {
     std::random_device r;
     std::default_random_engine gen(r());
     // uniform distribution
+    std::ofstream myfile("ips4o 1e9 data.txt");
     for (auto n: n_sizes) {
         std::vector<size_t> num_keys{100000, 1000, 10};
         std::cout << "test_name: uniform, n: " << n << std::endl;
         for (auto v : num_keys) {
+            myfile << "test_name: uniform, n: " << n << ", num_keys: " << v << std::endl;
             double total_time = 0;
             auto seq = uniform_pairs_generator<T>(v, n);
             for (int i = 0; i <= NUM_ROUNDS; i++) {
@@ -130,21 +133,24 @@ void run_all_dist() {
                 ips4o::parallel::sort(seq.begin(), seq.end(), std::less<>{});
                 auto diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - last).count() / 1000000.0;
                 if (i == 0) {
-                    printf("Warmup round: %f ", diff);
+                    printf("Warmup round: %f\n", diff);
                 } else {
                     printf("Round %d: %f ", i, diff);
                     total_time += diff;
                     check_correctness(seq);
                 }
+                myfile << diff << std::endl;
             }
             double avg = total_time / NUM_ROUNDS;
             printf("Average: %f\n", avg);
+            myfile << avg << std::endl;
         }
 
         // exponential distribution
         std::vector<double> lambda{10.0/n, 20.0/n, 50.0/n, 70.0/n, 100.0/n};
         std::cout << "test_name: exponential, n: " << n << std::endl;
         for (auto v : lambda) {
+            myfile << "test_name: exponential, n: " << n << ", lambda: " << v << std::endl;
             double total_time = 0;
             auto seq = exponential_pairs_generator<T>(v, n);
             for (int i = 0; i <= NUM_ROUNDS; i++) {
@@ -153,20 +159,23 @@ void run_all_dist() {
                 ips4o::parallel::sort(seq.begin(), seq.end(), std::less<>{});
                 auto diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - last).count() / 1000000.0;
                 if (i == 0) {
-                    printf("Warmup round: %f ", diff);
+                    printf("Warmup round: %f\n", diff);
                 } else {
                     printf("Round %d: %f ", i, diff);
                     total_time += diff;
                     check_correctness(seq);
                 }
+                myfile << diff << std::endl;
             }
             double avg = total_time / NUM_ROUNDS;
             printf("Average: %f\n", avg);
+            myfile << avg << std::endl;
         }
 
         std::vector<double> s{0.6, 0.8, 1, 1.2, 1.5};
         std::cout << "test_name: zipfian, n: " << n << std::endl;
         for (auto v : s) {
+            myfile << "test_name: zipfian, n: " << n << ", s: " << v << std::endl;
             double total_time = 0;
             auto seq = zipfian_pairs_generator<T>(v, n);
             for (int i = 0; i <= NUM_ROUNDS; i++) {
@@ -175,17 +184,20 @@ void run_all_dist() {
                 ips4o::parallel::sort(seq.begin(), seq.end(), std::less<>{});
                 auto diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - last).count() / 1000000.0;
                 if (i == 0) {
-                    printf("Warmup round: %f ", diff);
+                    printf("Warmup round: %f\n", diff);
                 } else {
                     printf("Round %d: %f ", i, diff);
                     total_time += diff;
                     check_correctness(seq);
                 }
+                myfile << diff << std::endl;
             }
             double avg = total_time / NUM_ROUNDS;
             printf("Average: %f\n", avg);
+            myfile << avg << std::endl;
         }
     }
+    myfile.close();
 }
 
 int main(int argc, char** argv) {
